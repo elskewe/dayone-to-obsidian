@@ -96,7 +96,8 @@ def process_journal(journal: Path, icons: bool, tagPrefix: str):
     journal_name = (
         journal.stem.lower()
     )  # name of folder where journal entries will end up in your Obsidian vault
-    journal_folder = journal.resolve().parent / journal_name
+    base_folder = journal.resolve().parent 
+    journal_folder = base_folder / journal_name
 
     # Clean out existing journal folder, otherwise each run creates new files
     if journal_folder.exists():
@@ -182,14 +183,14 @@ def process_journal(journal: Path, icons: bool, tagPrefix: str):
                     for p in entry["photos"]:
                         image_type = p["type"]
                         original_photo_file = (
-                            journal_folder
+                            base_folder
                             / "photos"
-                            / f"{p['md5']}.{image_type}".lower()
+                            / f"{p['md5']}.{image_type}"
                         )
                         renamed_photo_file = (
-                            journal_folder
+                            base_folder
                             / "photos"
-                            / f"{p['identifier']}.{image_type}".lower()
+                            / f"{p['identifier']}.{image_type}"
                         )
                         if original_photo_file.exists():
                             click.echo(
@@ -197,23 +198,23 @@ def process_journal(journal: Path, icons: bool, tagPrefix: str):
                             )
                             original_photo_file.rename(renamed_photo_file)
 
-                    # Now to replace the text to point to the file in obsidian
-                    new_text = re.sub(
-                        r"(\!\[\]\(dayone-moment:\/\/)([A-F0-9]+)(\))",
-                        (r"![[\2.%s]]" % image_type).lower(),
-                        new_text,
-                    )
+                        # Now to replace the text to point to the file in obsidian
+                        new_text = re.sub(
+                            r"(\!\[\]\(dayone-moment:\/\/)([A-F0-9]+)(\))",
+                            (r"![[\2.%s]]" % image_type),
+                            new_text,
+                        )
 
                 if "pdfAttachments" in entry:
                     # Correct photo pdf links. Similar to what is done on photos
                     for p in entry["pdfAttachments"]:
                         original_pdf_file = (
-                            journal_folder / "pdfs" / f"{p['md5']}.{image_type}".lower()
+                            base_folder / "pdfs" / f"{p['md5']}.pdf"
                         )
                         renamed_pdf_file = (
-                            journal_folder
+                            base_folder
                             / "pdfs"
-                            / f"{p['identifier']}.{image_type}".lower()
+                            / f"{p['identifier']}.pdf"
                         )
                         if original_pdf_file.exists():
                             click.echo(
@@ -221,12 +222,12 @@ def process_journal(journal: Path, icons: bool, tagPrefix: str):
                             )
                             original_pdf_file.rename(renamed_pdf_file)
 
-                    # Now to replace the text to point to the file in obsidian
-                    new_text = re.sub(
-                        r"(\!\[\]\(dayone-moment:\/pdfAttachment\/)([A-F0-9]+)(\))",
-                        r"![[\2.pdf]]",
-                        new_text,
-                    )
+                        # Now to replace the text to point to the file in obsidian
+                        new_text = re.sub(
+                            r"(\!\[\]\(dayone-moment:\/pdfAttachment\/)([A-F0-9]+)(\))",
+                            r"![[\2.pdf]]",
+                            new_text,
+                        )
 
                 new_entry.append(new_text)
             except KeyError:
