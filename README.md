@@ -10,7 +10,8 @@ Heavily based off the work from [QuantumGardener](https://github.com/quantumgard
 
 ## Optional requirements
 * Obsidian [Icons Plugin](https://github.com/visini/obsidian-icons-plugin) to display calendar marker at start of page heading. Enable by passing:
-- poetry run python import.py --icons true path/to/folder
+* If you use the [Icons Plugin](https://github.com/visini/obsidian-icons-plugin) to display calendar marker at start of page heading pass ``--icons``
+* poetry run python import.py --icons true path/to/folder
 
 ## Day One version
 This script works with version 7.1 of Day One. It has not been tested with any other versions.
@@ -23,10 +24,9 @@ This script works with version 7.1 of Day One. It has not been tested with any o
 
 1. Export your journal from [Day One in JSON format](https://help.dayoneapp.com/en/articles/440668-exporting-entries) 
 2. Expand that zip file
-3. If you use the [Icons Plugin](https://github.com/visini/obsidian-icons-plugin) to display calendar marker at start of page heading pass ``--icons``
-4. Run the script as shown above
-5. Check results in Obsidian by opening the folder as a vault
-6. If happy, move each *journal name*, *photos*, and *pdfs* folders to another vault.
+3. Run the script as shown above
+4. Check results in Obsidian by opening the folder as a vault
+5. If happy, move each *journal name*, *photos*, and *pdfs* folders to another vault.
 
 ## Features
 * Processes all entries, including any blank ones you may have.
