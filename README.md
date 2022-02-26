@@ -30,7 +30,7 @@ This script works with version 7.1 of Day One. It has not been tested with any o
 
 ## Features
 * Processes all entries, including any blank ones you may have.
-* Entries organised by year/month/day
+* Entries organised by year/month/day.
 * If multiple entries on a day, each additional entry is treated seperately
 * Adds metadata for whatever exists at bottom of file
    * minimum date and timezone
@@ -39,4 +39,4 @@ This script works with version 7.1 of Day One. It has not been tested with any o
    * Weather and user activity
 * Every entry has the date inserted in the text for easier reading (with a calendar icon to help you quickly distinguish from other entries in your vault)
 * If location is specified, it is given under the date, linked to Google Search
-* Tags can be prefixed (default = journal/) to show as subtags in Obsidian separate from other note tags
+* Tags can be prefixed (default = journal/) to show as subtags in Obsidian separate from other note tags. User ``--tags-prefix`` option
