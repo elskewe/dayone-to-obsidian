@@ -40,3 +40,4 @@ This script works with version 7.1 of Day One. It has not been tested with any o
 * Every entry has the date inserted in the text for easier reading (with a calendar icon to help you quickly distinguish from other entries in your vault)
 * If location is specified, it is given under the date, linked to Google Search
 * Tags can be prefixed (default = journal/) to show as subtags in Obsidian separate from other note tags. User ``--tags-prefix`` option
+* Run with --help for options
