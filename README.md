@@ -11,7 +11,7 @@ Heavily based off the work from [QuantumGardener](https://github.com/quantumgard
 ## Optional requirements
 * Obsidian [Icons Plugin](https://github.com/visini/obsidian-icons-plugin) to display calendar marker at start of page heading. Enable by passing:
 * If you use the [Icons Plugin](https://github.com/visini/obsidian-icons-plugin) to display calendar marker at start of page heading pass ``--icons``
-* poetry run python import.py --icons true path/to/folder
+  * ``poetry run python import.py --icons true path/to/folder``
 
 ## Day One version
 This script works with version 7.1 of Day One. It has not been tested with any other versions.
