@@ -277,10 +277,10 @@ def process_journal(journal: Path, icons: bool, tagPrefix: str, verbose: int):
             if target_file.exists():
                 # File exists, need to find the next in sequence and append alpha character marker
                 index = 97  # ASCII a
-                target_file = month_dir / f"{file_date_format, chr(index)}.md"
+                target_file = month_dir / f"{file_date_format}{chr(index)}.md"
                 while target_file.exists():
                     index += 1
-                    target_file = month_dir / f"{file_date_format, chr(index)}.md"
+                    target_file = month_dir / f"{file_date_format}{chr(index)}.md"
 
             with open(target_file, "w", encoding="utf-8") as f:
                 for line in new_entry:
