@@ -91,7 +91,7 @@ def retrieve_metadata(entry, localDate, location, tagPrefix):
     return metadata
 
 
-def process_journal(journal: Path, icons: bool, tagPrefix: str):
+def process_journal(journal: Path, icons: bool, tagPrefix: str, verbose: int):
     """Converts all entries in the JSON files to markdown files"""
     journal_name = (
         journal.stem.lower()
@@ -101,20 +101,25 @@ def process_journal(journal: Path, icons: bool, tagPrefix: str):
 
     # Clean out existing journal folder, otherwise each run creates new files
     if journal_folder.exists():
-        click.echo(f"Deleting existing folder: {journal_folder}")
+        if verbose > 0:
+            click.echo(f"Deleting existing folder: {journal_folder}")
         shutil.rmtree(journal_folder)
 
-    click.echo(f"Creating {journal_folder}")
+    if verbose > 0:
+        click.echo(f"Creating {journal_folder}")
     journal_folder.mkdir()
 
     if icons:
-        click.echo("Icons are on")
+        if verbose > 0:
+            click.echo("Icons are on")
         date_icon = "`fas:CalendarAlt` "
     else:
-        click.echo("Icons are off")
+        if verbose > 0:
+            click.echo("Icons are off")
         date_icon = ""  # make 2nd level heading
 
     click.echo(f"Begin processing entries for '{journal.name}'")
+
     with open(journal, encoding="utf-8") as json_file:
         data = json.load(json_file)
         for count, entry in enumerate(data["entries"], start=1):
@@ -193,9 +198,10 @@ def process_journal(journal: Path, icons: bool, tagPrefix: str):
                             / f"{p['identifier']}.{image_type}"
                         )
                         if original_photo_file.exists():
-                            click.echo(
-                                f"Renaming {original_photo_file} to {renamed_photo_file}"
-                            )
+                            if verbose > 1:
+                                click.echo(
+                                    f"Renaming {original_photo_file} to {renamed_photo_file}"
+                                )
                             original_photo_file.rename(renamed_photo_file)
 
                         # Now to replace the text to point to the file in obsidian
@@ -217,9 +223,10 @@ def process_journal(journal: Path, icons: bool, tagPrefix: str):
                             / f"{p['identifier']}.pdf"
                         )
                         if original_pdf_file.exists():
-                            click.echo(
-                                f"Renaming {original_pdf_file} to {renamed_pdf_file}"
-                            )
+                            if verbose > 1:
+                                click.echo(
+                                    f"Renaming {original_pdf_file} to {renamed_pdf_file}"
+                                )
                             original_pdf_file.rename(renamed_pdf_file)
 
                         # Now to replace the text to point to the file in obsidian
