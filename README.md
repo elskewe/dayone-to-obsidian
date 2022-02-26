@@ -23,14 +23,14 @@ This script works with version 7.1 of Day One. It has not been tested with any o
 
 1. Export your journal from [Day One in JSON format](https://help.dayoneapp.com/en/articles/440668-exporting-entries) 
 2. Expand that zip file
-3. If you **not** are using the [Icons Plugin](https://github.com/visini/obsidian-icons-plugin) to display calendar marker at start of page heading set *icons = False*
+3. If you use the [Icons Plugin](https://github.com/visini/obsidian-icons-plugin) to display calendar marker at start of page heading pass ``--icons``
 4. Run the script as shown above
 5. Check results in Obsidian by opening the folder as a vault
-6. If happy, move each *journal* and *photos* folders to another vault.
+6. If happy, move each *journal name*, *photos*, and *pdfs* folders to another vault.
 
 ## Features
 * Processes all entries, including any blank ones you may have.
-* Entries organised by year/month/day.
+* Entries are organised by year/month/day.
 * If multiple entries on a day, each additional entry is treated seperately
 * Adds metadata for whatever exists at bottom of file
    * minimum date and timezone
