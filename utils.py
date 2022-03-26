@@ -1,41 +1,53 @@
 from __future__ import annotations
 
-from collections import namedtuple
-from json.decoder import JSONDecodeError
-
-import dateutil.parser
-
-import click
 import json
-import pytz
 import re
-import os
-import sys
 import shutil
 import typing
+from collections import namedtuple
+
+import click
+import dateutil.parser
+import pytz
+
+from datetime import datetime
 
 if typing.TYPE_CHECKING:
     from pathlib import Path
 
-
 # Used to produce somewhat structured metadata entries
 MetadataEntry = namedtuple("MetadataEntry", ["name", "description"])
 
+# A single entry's content and its path (without metadata)
+Entry = namedtuple("Entry", ["text", "file"])
 
-def retrieve_metadata(entry, localDate, location, tagPrefix):
+def retrieve_metadata(entry: typing.Dict, local_date: datetime, tag_prefix: str, tags_as_links: bool, status_tags: typing.List) -> typing.List:
     metadata = []
-    metadata.append(MetadataEntry(name="dayone_uuid", description=entry["uuid"]))
+    metadata.append(MetadataEntry(name="Dayone UUID", description=f"`{entry['uuid']}`"))
 
     # Add raw create datetime adjusted for timezone and identify timezone
     metadata.append(
         MetadataEntry(
             name="Creation Date",
-            description=f"{localDate.isoformat(), entry['timeZone']}",
+            description=f"{local_date.isoformat(), entry['timeZone']}",
         )
     )
 
+    # Add location
+    try:
+        location = list(
+            filter(
+                    None,
+                    [entry["location"].get(key) for key in ("placeName","localityName","administrativeArea","country")]
+                )
+        )
+    except KeyError:
+        location = None
+
     if location:
-        metadata.append(MetadataEntry(name="location name", description=location))
+        if tags_as_links:
+            location = ["[[" + str(loc) + "]]" for loc in location]
+        metadata.append(MetadataEntry(name="Location Name", description=', '.join(location)))
 
     # Add GPS, not all entries have this
     if "location" in entry and all(
@@ -44,16 +56,18 @@ def retrieve_metadata(entry, localDate, location, tagPrefix):
         lat = entry["location"]["latitude"]
         lon = entry["location"]["longitude"]
 
+        maps_link = "[Google Maps](https://www.google.com/maps/search/?api=1&query={},{})"
+
         metadata.append(
             MetadataEntry(
-                name="location",
+                name="Location",
                 description=f"[{lat},{lon}]",
             )
         )
         metadata.append(
             MetadataEntry(
-                name="GPS",
-                description=f"https://www.google.com/maps/search/?api=1&query={lat},{lon}",
+                name="Map",
+                description=maps_link.format(lat, lon),
             )
         )
 
@@ -68,7 +82,7 @@ def retrieve_metadata(entry, localDate, location, tagPrefix):
         metadata.append(
             MetadataEntry(
                 name="Weather",
-                description=f"{w['conditionsDescription']}, {w['temperatureCelsius']}°C, {w['windSpeedKPH']} kph wind",
+                description=f"{w['conditionsDescription']}, {round(w['temperatureCelsius'], 1)}°C, {round(w['windSpeedKPH'], 1)} kph wind",
             )
         )
 
@@ -80,18 +94,39 @@ def retrieve_metadata(entry, localDate, location, tagPrefix):
 
     tags = []
     if "tags" in entry:
-        tags = []
-        for t in entry["tags"]:
-            tags.append("%s%s" % (tagPrefix, t.replace(" ", "-").replace("---", "-")))
-        if entry["starred"]:
-            tags.append("%sstarred" % (tagPrefix))
-    if len(tags) > 0:
-        metadata.append(MetadataEntry(name="tags", description=",".join(tags)))
+        for tag in entry["tags"]:
+            if tags_as_links:
+                if status_tags and tag.lower() in status_tags:
+                    continue
+                new_tag = "[[" + tag.capitalize() + "]]"
+            else:
+                new_tag = f"{tag_prefix}{tag.lower().replace(' ', '-').replace('---', '-')}"
+            tags.append(new_tag)
+
+    status = []
+    if status_tags:
+        # assert isinstance(status_tags, typing.List), "'status_tags' must be a list"
+        for tag in status_tags:
+            status.append(f"#{tag.capitalize()}") 
+    
+    if entry["starred"]:
+        if tags_as_links:
+            status.append("#\u2b50")
+        else:
+            tags.append(f"{tag_prefix}\u2B50")
+
+    if tags:
+        metadata.append(MetadataEntry(name="Tags", description=", ".join(tags)))
+
+    if status:
+        metadata.append(MetadataEntry(name="Status", description=', '.join(status)))
 
     return metadata
 
+def process_journal(journal: Path, icons: bool, tag_prefix: str, verbose: int, convert_links: bool, tags_as_links: bool, yaml: bool, status_tags: typing.List) -> None:
+    if verbose != 0:
+        click.echo("Verbose mode enabled. Verbosity level: {}".format(verbose))
 
-def process_journal(journal: Path, icons: bool, tagPrefix: str, verbose: int):
     """Converts all entries in the JSON files to markdown files"""
     journal_name = (
         journal.stem.lower()
@@ -118,67 +153,60 @@ def process_journal(journal: Path, icons: bool, tagPrefix: str, verbose: int):
             click.echo("Icons are off")
         date_icon = ""  # make 2nd level heading
 
+    if yaml and verbose > 0:
+        click.echo("Each entry will have a YAML frontmatter")
+        if verbose > 1:
+            click.echo("YAML frontmatter will contain 'Location', 'Location Name', and 'Tags'")
+    elif verbose > 0:
+        click.echo("No YAML frontmatter will be added")
+
     click.echo(f"Begin processing entries for '{journal.name}'")
+
+    # A list of processed entries
+    entries = []
+
+    # Mapping between entries UUIDs and Markdown files
+    uuid_to_file = {}
+
+    # A set with all the output filenames
+    # it's just a check list of filenames to prevent writing only the latest entry within those with the same date
+    output_files = set()
 
     with open(journal, encoding="utf-8") as json_file:
         data = json.load(json_file)
         for count, entry in enumerate(data["entries"], start=1):
             new_entry = []
 
-            createDate = dateutil.parser.isoparse(entry["creationDate"])
-            localDate = createDate.astimezone(
+            creation_date = dateutil.parser.isoparse(entry["creationDate"])
+            local_date = creation_date.astimezone(
                 pytz.timezone(entry["timeZone"])
             )  # It's natural to use our local date/time as reference point, not UTC
 
-            # Add location
-            location = ""
-            for locale in [
-                "placeName",
-                "localityName",
-                "administrativeArea",
-                "country",
-            ]:
-                try:
-                    location = "%s, %s" % (location, entry["location"][locale])
-                except KeyError:
-                    pass
-            location = location[2:]
+            # Fetch entry's metadata
+            metadata = retrieve_metadata(entry, local_date, tag_prefix, tags_as_links, status_tags)
 
-            # add some metadata as front matter
-            metadata = retrieve_metadata(entry, localDate, location, tagPrefix)
-            new_entry.append("---\n")
-            for name, description in metadata:
-                if name in ["location", "location name", "tags"]:
-                    new_entry.append(f"{name}: {description}\n")
-            new_entry.append("---\n")
+            # Add some metadata as a YAML front matter
+            if yaml:
+                new_entry.append("---\n")
+                for name, description in metadata:
+                    if name in ["Location", "Location Name", "Tags"]:
+                        new_entry.append(f"{name.lower().replace(' ', '_')}: {description}\n")
+                new_entry.append("---\n\n")
 
             # Add date as page header, removing time if it's 12 midday as time obviously not read
-            if sys.platform == "win32":
-                new_entry.append(
-                    "## %s%s\n"
-                    % (
-                        date_icon,
-                        localDate.strftime("%A, %#d %B %Y at %#I:%M %p").replace(
-                            " at 12:00 PM", ""
-                        ),
-                    )
+            new_entry.append(
+                "## {icon}{date}\n".format(
+                    icon=date_icon,
+                    date=local_date.strftime("%A, %-d %B %Y at %H:%M").replace(" at 12:00 PM", "")
                 )
-            else:
-                new_entry.append(
-                    "## %s%s\n"
-                    % (
-                        date_icon,
-                        localDate.strftime("%A, %-d %B %Y at %-I:%M %p").replace(
-                            " at 12:00 PM", ""
-                        ),
-                    )
-                )  # untested
+            )
 
             # Add body text if it exists (can have the odd blank entry), after some tidying up
             try:
                 new_text = entry["text"].replace("\\", "")
                 new_text = new_text.replace("\u2028", "\n")
                 new_text = new_text.replace("\u1C6A", "\n\n")
+                new_text = new_text.replace("\u200b", "")
 
                 if "photos" in entry:
                     # Correct photo links. First we need to rename them. The filename is the md5 code, not the identifier
@@ -235,55 +263,96 @@ def process_journal(journal: Path, icons: bool, tagPrefix: str, verbose: int):
                             r"![[\2.pdf]]",
                             new_text,
                         )
+                
+                # Handle audio attachments as well
+                if "audios" in entry:
+                    for audio in entry["audios"]:
+                        audio_format = "m4a" # AAC files are very often saved with .m4a extension
+                        original_audio_file = (
+                            base_folder / "audios" / f"{audio['md5']}.{audio_format}"
+                        )
+                        renamed_audio_file = (
+                            base_folder / "audios" / f"{audio['identifier']}.{audio_format}"
+                        )
+                        if original_audio_file.exists():
+                            if verbose > 1:
+                                click.echo(f"Renaming {original_audio_file} to {renamed_audio_file}")
+                            original_audio_file.rename(renamed_audio_file)
+                        
+                        new_text = re.sub(
+                            r"(\!\[\]\(dayone-moment:\/audio/)([A-F0-9]+)(\))",
+                            r"![[\2.{}]]".format(audio_format),
+                            new_text
+                        )
 
                 new_entry.append(new_text)
+
             except KeyError:
                 pass
 
-            ## Start Metadata section
+            # Start Metadata section
 
-            # newEntry.append( '%%\n' ) #uncomment to hide metadata
-
-            metadata = retrieve_metadata(entry, localDate, location, tagPrefix)
+            # newEntry.append( '%%\n' ) # uncomment to hide metadata
             new_entry.append("\n\n---\n")
             new_entry.append("**Metadata**\n")
             for name, description in metadata:
-                new_entry.append(f"- {name}: {description}\n")
+                if name != "Location":
+                    new_entry.append(f"- {name}: {description}\n")
 
             # Save entries organised by year, year-month, year-month-day.md
-            year_dir = journal_folder / str(createDate.year)
-            month_dir = year_dir / createDate.strftime("%Y-%m")
+            year_dir = journal_folder / str(creation_date.year)
+            month_dir = year_dir / creation_date.strftime("%Y-%m")
 
             if not year_dir.exists():
                 year_dir.mkdir()
 
-            if not os.path.isdir(month_dir):
+            if not month_dir.is_dir():
                 month_dir.mkdir()
 
-            # Attempt to get the header to make a better note filename
-            # first_line = ""
-            # if "richText" in entry:
-            #     try:
-            #         rich_text = json.loads(entry["richText"])
-            #         first_line = " " + rich_text["contents"][0]["text"].strip()
-            #     except (JSONDecodeError, KeyError):
-            #         pass
-
             # Target filename to save to. Will be modified if already exists
-            file_date_format = localDate.strftime("%Y-%m-%d")
+            file_date_format = local_date.strftime("%Y-%m-%d")
             target_file = month_dir / f"{file_date_format}.md"
 
             # Here is where we handle multiple entries on the same day. Each goes to it's own file
-            if target_file.exists():
+            if target_file in output_files:
                 # File exists, need to find the next in sequence and append alpha character marker
                 index = 97  # ASCII a
                 target_file = month_dir / f"{file_date_format}{chr(index)}.md"
-                while target_file.exists():
+                while target_file in output_files:
                     index += 1
                     target_file = month_dir / f"{file_date_format}{chr(index)}.md"
+            
+            output_files.add(target_file)
 
-            with open(target_file, "w", encoding="utf-8") as f:
-                for line in new_entry:
-                    f.write(line)
+            # Step 1 to replace dayone internal links to other entries with proper Obsidian [[links]]
+            metadata_dict = dict(metadata)
+            uuid_to_file[metadata_dict["Dayone UUID"].strip('`')] = target_file.name
 
+            entries.append(Entry(text=''.join(new_entry), file=target_file))
+        
         click.echo(f"Complete: {count} entries processed.")
+
+    if convert_links:
+        click.echo("Converting Day One internal links to Obsidian (when possible)")
+
+        # Step 2 to replace dayone internal links: we must do a second iteration over entries
+        # A replacement function for dayone internal links
+        def repl(match: re.Match) -> str:
+            link_text, uuid = match.groups()
+            if uuid in uuid_to_file:
+                return f"[[{uuid_to_file[uuid]}|{link_text}]]"
+            return link_text
+        
+        # The regex to match a dayone internal link: [link_text](dayone://view?EntryId=uuid)
+        regex = re.compile(r"\[(.*?)\]\(dayone:\/\/.*?([A-F0-9]+)\)") 
+    
+    for entry in entries:
+        text, target_file = entry
+        
+        if convert_links:
+            text = re.sub(regex, repl, text)
+        
+        with open(target_file, "w", encoding="utf-8") as fp:
+            fp.write(text)
+
+    click.echo(f"Done. Entries have been exported to '{journal_folder}'.")
