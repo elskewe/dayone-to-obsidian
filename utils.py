@@ -127,7 +127,8 @@ def process_journal(
         tags_as_links: bool,
         yaml: bool,
         status_tags: typing.List,
-        merge_entries: bool
+        merge_entries: bool,
+        entries_separator: str,
     ) -> None:
 
     if verbose != 0:
@@ -328,12 +329,11 @@ def process_journal(
                         index += 1
                         target_file = month_dir / f"{file_date_format}{chr(index)}.md"
                 else:
-                    _, (prev_entry, _) = entries.popitem()
-                    # TODO: add a customizable separator when merging entries
-                    new_entry = prev_entry + ['\n\n---\n---\n\n'] + new_entry
+                    prev_entry, _ = entries.pop(target_file.stem)
+                    new_entry = prev_entry + [f'\n\n{entries_separator}\n\n'] + new_entry
             
             # Add current entry's as a new key-value pair in entries dict
-            entries[target_file.stem] = (new_entry, target_file)
+            entries[target_file.stem] = new_entry, target_file
 
             # Step 1 to replace dayone internal links to other entries with proper Obsidian [[links]]
             metadata_dict = dict(metadata)

@@ -36,7 +36,12 @@ from pathlib import Path
     is_flag=True,
     default=False,
 )
-def convert(verbose, icons, tags_prefix, folder, convert_links, tags_as_links, yaml, status_tag, merge_entries):
+@click.option(
+    '--entries-separator', '-sep',
+    help="String to use to separate merged entries",
+    default="---\n---",
+)
+def convert(verbose, icons, tags_prefix, folder, convert_links, tags_as_links, yaml, status_tag, merge_entries, entries_separator):
     """Converts DayOne entries into markdown files suitable to use as an Obsidian vault.
     Each journal will end up in a sub-folder named after the file (e.g.: Admin.json -> admin/). All JSON files
     in the FOLDER will be processed, remove those you don't want processed. The FOLDER will also be the destination
@@ -50,7 +55,7 @@ def convert(verbose, icons, tags_prefix, folder, convert_links, tags_as_links, y
     
     # Process each JSON journal file in the input folder
     for filename in Path(folder).glob("*.json"):
-        process_journal(filename, icons, tags_prefix, verbose, convert_links, tags_as_links, yaml, status_tag, merge_entries)
+        process_journal(filename, icons, tags_prefix, verbose, convert_links, tags_as_links, yaml, status_tag, merge_entries, entries_separator)
 
 if __name__ == "__main__":
     convert()
