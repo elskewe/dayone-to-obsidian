@@ -18,9 +18,6 @@ if typing.TYPE_CHECKING:
 # Used to produce somewhat structured metadata entries
 MetadataEntry = namedtuple("MetadataEntry", ["name", "description"])
 
-# A single entry's content and its path (without metadata)
-Entry = namedtuple("Entry", ["text", "file"])
-
 def retrieve_metadata(entry: typing.Dict, local_date: datetime, tag_prefix: str, tags_as_links: bool, status_tags: typing.List) -> typing.List:
     metadata = []
     metadata.append(MetadataEntry(name="Dayone UUID", description=f"`{entry['uuid']}`"))
@@ -56,8 +53,6 @@ def retrieve_metadata(entry: typing.Dict, local_date: datetime, tag_prefix: str,
         lat = entry["location"]["latitude"]
         lon = entry["location"]["longitude"]
 
-        maps_link = "[Google Maps](https://www.google.com/maps/search/?api=1&query={},{})"
-
         metadata.append(
             MetadataEntry(
                 name="Location",
@@ -67,7 +62,7 @@ def retrieve_metadata(entry: typing.Dict, local_date: datetime, tag_prefix: str,
         metadata.append(
             MetadataEntry(
                 name="Map",
-                description=maps_link.format(lat, lon),
+                description="[Google Maps](https://www.google.com/maps/search/?api=1&query={},{})".format(lat, lon),
             )
         )
 
@@ -123,7 +118,18 @@ def retrieve_metadata(entry: typing.Dict, local_date: datetime, tag_prefix: str,
 
     return metadata
 
-def process_journal(journal: Path, icons: bool, tag_prefix: str, verbose: int, convert_links: bool, tags_as_links: bool, yaml: bool, status_tags: typing.List) -> None:
+def process_journal(
+        journal: Path,
+        icons: bool,
+        tag_prefix: str, 
+        verbose: int, 
+        convert_links: bool,
+        tags_as_links: bool,
+        yaml: bool,
+        status_tags: typing.List,
+        merge_entries: bool
+    ) -> None:
+
     if verbose != 0:
         click.echo("Verbose mode enabled. Verbosity level: {}".format(verbose))
 
@@ -162,15 +168,12 @@ def process_journal(journal: Path, icons: bool, tag_prefix: str, verbose: int, c
 
     click.echo(f"Begin processing entries for '{journal.name}'")
 
-    # A list of processed entries
-    entries = []
+    # All entries processed will be added to a ordered dictionary
+    entries = typing.OrderedDict()
 
     # Mapping between entries UUIDs and Markdown files
+    # Needed to perform DayOne -> Obsidian links conversion
     uuid_to_file = {}
-
-    # A set with all the output filenames
-    # it's just a check list of filenames to prevent writing only the latest entry within those with the same date
-    output_files = set()
 
     with open(journal, encoding="utf-8") as json_file:
         data = json.load(json_file)
@@ -314,21 +317,27 @@ def process_journal(journal: Path, icons: bool, tag_prefix: str, verbose: int, c
             target_file = month_dir / f"{file_date_format}.md"
 
             # Here is where we handle multiple entries on the same day. Each goes to it's own file
-            if target_file in output_files:
-                # File exists, need to find the next in sequence and append alpha character marker
-                index = 97  # ASCII a
-                target_file = month_dir / f"{file_date_format}{chr(index)}.md"
-                while target_file in output_files:
-                    index += 1
+            if target_file.stem in entries:
+                if verbose > 1:
+                    click.echo(f"Found another entry with the same key '{target_file.name}'")
+                if not merge_entries:
+                    # File exists, need to find the next in sequence and append alpha character marker
+                    index = 97  # ASCII a
                     target_file = month_dir / f"{file_date_format}{chr(index)}.md"
+                    while target_file.stem in entries:
+                        index += 1
+                        target_file = month_dir / f"{file_date_format}{chr(index)}.md"
+                else:
+                    _, (prev_entry, _) = entries.popitem()
+                    # TODO: add a customizable separator when merging entries
+                    new_entry = prev_entry + ['\n\n---\n---\n\n'] + new_entry
             
-            output_files.add(target_file)
+            # Add current entry's as a new key-value pair in entries dict
+            entries[target_file.stem] = (new_entry, target_file)
 
             # Step 1 to replace dayone internal links to other entries with proper Obsidian [[links]]
             metadata_dict = dict(metadata)
             uuid_to_file[metadata_dict["Dayone UUID"].strip('`')] = target_file.name
-
-            entries.append(Entry(text=''.join(new_entry), file=target_file))
         
         click.echo(f"Complete: {count} entries processed.")
 
@@ -346,8 +355,9 @@ def process_journal(journal: Path, icons: bool, tag_prefix: str, verbose: int, c
         # The regex to match a dayone internal link: [link_text](dayone://view?EntryId=uuid)
         regex = re.compile(r"\[(.*?)\]\(dayone:\/\/.*?([A-F0-9]+)\)") 
     
-    for entry in entries:
+    for entry in entries.values():
         text, target_file = entry
+        text = ''.join(text) # an entry is a list of string, so we need to concat all of them
         
         if convert_links:
             text = re.sub(regex, repl, text)
