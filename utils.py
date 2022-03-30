@@ -15,19 +15,26 @@ from datetime import datetime
 if typing.TYPE_CHECKING:
     from pathlib import Path
 
+from rich.progress import track
+
 # Used to produce somewhat structured metadata entries
 MetadataEntry = namedtuple("MetadataEntry", ["name", "description"])
 
 def retrieve_metadata(entry: typing.Dict, local_date: datetime, tag_prefix: str, tags_as_links: bool, status_tags: typing.List) -> typing.List:
     metadata = []
-    metadata.append(MetadataEntry(name="Dayone UUID", description=f"`{entry['uuid']}`"))
+    metadata.append(MetadataEntry("UUID", description=f"`{entry['uuid']}`"))
 
     # Add raw create datetime adjusted for timezone and identify timezone
-    metadata.append(
+    metadata.extend([
         MetadataEntry(
-            name="Creation Date",
-            description=f"{local_date.isoformat(), entry['timeZone']}",
+            name="CreationDate",
+            description=local_date.isoformat(),
+        ),
+        MetadataEntry(
+            name="Timezone",
+            description=entry['timeZone'],
         )
+    ]
     )
 
     # Add location
@@ -44,7 +51,7 @@ def retrieve_metadata(entry: typing.Dict, local_date: datetime, tag_prefix: str,
     if location:
         if tags_as_links:
             location = ["[[" + str(loc) + "]]" for loc in location]
-        metadata.append(MetadataEntry(name="Location Name", description=', '.join(location)))
+        metadata.append(MetadataEntry(name="Location", description=', '.join(location)))
 
     # Add GPS, not all entries have this
     if "location" in entry and all(
@@ -55,8 +62,8 @@ def retrieve_metadata(entry: typing.Dict, local_date: datetime, tag_prefix: str,
 
         metadata.append(
             MetadataEntry(
-                name="Location",
-                description=f"[{lat},{lon}]",
+                name="GPS",
+                description=f"({lat}, {lon})",
             )
         )
         metadata.append(
@@ -82,27 +89,27 @@ def retrieve_metadata(entry: typing.Dict, local_date: datetime, tag_prefix: str,
         )
 
     # Add user activity if present
-    if "userActivity" in entry and "stepCount" in entry["userActivity"]:
-        metadata.append(
-            MetadataEntry(name="Steps", description=entry["userActivity"]["stepCount"])
-        )
+    if "userActivity" in entry:
+        activity = entry["userActivity"]
+        if "activityName" in activity:
+            metadata.append(MetadataEntry(name="Activity", description=activity["activityName"]))
+
+        if "stepCount" in activity and activity["stepCount"] > 0:
+            metadata.append(MetadataEntry(name="Steps", description=activity["stepCount"]))
 
     tags = []
+    status = []
+
     if "tags" in entry:
         for tag in entry["tags"]:
             if tags_as_links:
                 if status_tags and tag.lower() in status_tags:
-                    continue
-                new_tag = "[[" + tag.capitalize() + "]]"
+                    status.append(f"#{tag.capitalize()}")
+                else:
+                    new_tag = "[[" + tag.capitalize() + "]]"
             else:
                 new_tag = f"{tag_prefix}{tag.lower().replace(' ', '-').replace('---', '-')}"
             tags.append(new_tag)
-
-    status = []
-    if status_tags:
-        # assert isinstance(status_tags, typing.List), "'status_tags' must be a list"
-        for tag in status_tags:
-            status.append(f"#{tag.capitalize()}") 
     
     if entry["starred"]:
         if tags_as_links:
@@ -178,7 +185,7 @@ def process_journal(
 
     with open(journal, encoding="utf-8") as json_file:
         data = json.load(json_file)
-        for count, entry in enumerate(data["entries"], start=1):
+        for count, entry in enumerate(track(data["entries"]), start=1):
             new_entry = []
 
             creation_date = dateutil.parser.isoparse(entry["creationDate"])
@@ -193,7 +200,7 @@ def process_journal(
             if yaml:
                 new_entry.append("---\n")
                 for name, description in metadata:
-                    if name in ["Location", "Location Name", "Tags"]:
+                    if name in ["GPS", "Location", "Tags"]:
                         new_entry.append(f"{name.lower().replace(' ', '_')}: {description}\n")
                 new_entry.append("---\n\n")
 
@@ -268,7 +275,7 @@ def process_journal(
                             new_text,
                         )
                 
-                # Handle audio attachments as well
+                # Handle audio & video attachments as well
                 if "audios" in entry:
                     for audio in entry["audios"]:
                         audio_format = "m4a" # AAC files are very often saved with .m4a extension
@@ -289,6 +296,26 @@ def process_journal(
                             new_text
                         )
 
+                if "videos" in entry:
+                    for video in entry["videos"]:
+                        video_format = video["type"]
+                        original_video_file = (
+                            base_folder / "videos" / f"{video['md5']}.{video_format}"
+                        )
+                        renamed_video_file = (
+                            base_folder / "videos" / f"{video['identifier']}.{video_format}"
+                        )
+                        if original_video_file.exists():
+                            if verbose > 1:
+                                click.echo(f"Renaming {original_video_file} to {renamed_video_file}")
+                            original_video_file.rename(renamed_video_file)
+                        
+                        new_text = re.sub(
+                            r"(\!\[\]\(dayone-moment:\/video/)([A-F0-9]+)(\))",
+                            r"![[\2.{}]]".format(video_format),
+                            new_text
+                        )
+
                 new_entry.append(new_text)
 
             except KeyError:
@@ -298,10 +325,9 @@ def process_journal(
 
             # newEntry.append( '%%\n' ) # uncomment to hide metadata
             new_entry.append("\n\n---\n")
-            new_entry.append("**Metadata**\n")
+            new_entry.append("### Metadata\n")
             for name, description in metadata:
-                if name != "Location":
-                    new_entry.append(f"- {name}: {description}\n")
+                new_entry.append(f"- {name}:: {description}\n")
 
             # Save entries organised by year, year-month, year-month-day.md
             year_dir = journal_folder / str(creation_date.year)
@@ -337,7 +363,7 @@ def process_journal(
 
             # Step 1 to replace dayone internal links to other entries with proper Obsidian [[links]]
             metadata_dict = dict(metadata)
-            uuid_to_file[metadata_dict["Dayone UUID"].strip('`')] = target_file.name
+            uuid_to_file[metadata_dict["UUID"].strip('`')] = target_file.name
         
         click.echo(f"Complete: {count} entries processed.")
 
@@ -346,21 +372,21 @@ def process_journal(
 
         # Step 2 to replace dayone internal links: we must do a second iteration over entries
         # A replacement function for dayone internal links
-        def repl(match: re.Match) -> str:
+        def replace_link(match: re.Match) -> str:
             link_text, uuid = match.groups()
             if uuid in uuid_to_file:
                 return f"[[{uuid_to_file[uuid]}|{link_text}]]"
-            return link_text
+            return f"^[Linked entry with UUID `{uuid}` not found]"
         
         # The regex to match a dayone internal link: [link_text](dayone://view?EntryId=uuid)
-        regex = re.compile(r"\[(.*?)\]\(dayone:\/\/.*?([A-F0-9]+)\)") 
+        regex = re.compile(r"\[(.*?)\]\(dayone2?:\/\/.*?([A-F0-9]+)\)") 
     
     for entry in entries.values():
         text, target_file = entry
         text = ''.join(text) # an entry is a list of string, so we need to concat all of them
         
         if convert_links:
-            text = re.sub(regex, repl, text)
+            text = re.sub(regex, replace_link, text)
         
         with open(target_file, "w", encoding="utf-8") as fp:
             fp.write(text)
