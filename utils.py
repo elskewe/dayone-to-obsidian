@@ -105,6 +105,7 @@ def retrieve_metadata(entry: typing.Dict, local_date: datetime, tag_prefix: str,
             if tags_as_links:
                 if status_tags and tag.lower() in status_tags:
                     status.append(f"#{tag.capitalize()}")
+                    continue
                 else:
                     new_tag = "[[" + tag.capitalize() + "]]"
             else:
@@ -218,6 +219,11 @@ def process_journal(
                 new_text = new_text.replace("\u2028", "\n")
                 new_text = new_text.replace("\u1C6A", "\n\n")
                 new_text = new_text.replace("\u200b", "")
+
+                # Fixes multi-line ```code blocks```
+                # DayOne breaks these block in many lines with a triple ``` delimiters.
+                # This results in a bad formatting of the Markdown output.
+                new_text = re.sub(r"```\s+```", "", new_text, flags=re.MULTILINE)
 
                 if "photos" in entry:
                     # Correct photo links. First we need to rename them. The filename is the md5 code, not the identifier
