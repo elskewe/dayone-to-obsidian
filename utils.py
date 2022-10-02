@@ -1,30 +1,30 @@
-# pylint: disable=too-many-nested-blocks,too-many-branches,too-many-locals,line-too-long,invalid-name,consider-using-f-string
+# pylint: disable=too-many-nested-blocks,too-many-branches,too-many-locals,line-too-long,invalid-name,consider-using-f-string,no-member
 """utils.py"""
 import json
 import re
 import shutil
-from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Set
 
 import dateutil.parser
 import pytz
+from attrs import define, field
 from rich.progress import Progress
 
 from rich_utils import info_msg, verbose_msg, warn_msg
 
 
-@dataclass
+@define
 class Entry:
     """A single journal entry"""
 
-    uuid: str = None
-    has_yaml: bool = False
-    yaml: str = ""
-    metadata: dict = field(default_factory=dict)
-    text: str = ""
-    output_file: Path = None
+    uuid: str = field(default=None, eq=True)
+    has_yaml: bool = field(default=False, eq=False)
+    yaml: str = field(default="", eq=False)
+    metadata: dict = field(default=None, factory=dict, eq=False)
+    text: str = field(default="", eq=False)
+    output_file: Path = field(default=None, eq=False)
 
     def __str__(self) -> str:
         if self.has_yaml:
@@ -42,17 +42,22 @@ class Entry:
             yaml=self.yaml, metadata="\n".join(metadata), text=self.text, uuid=self.uuid
         )
 
-    def add_metadata(self, *_, **kwargs):
-        """Add metadata fields"""
-        for name, value in kwargs.items():
-            self.metadata[name] = str(value)
+    @classmethod
+    def from_metadata(cls, metadata: dict) -> None:
+        """Create a new `Entry` from a metadata dictionary"""
+        if not isinstance(metadata, dict):
+            raise TypeError(
+                f"Metadata must be of `dict` type, instead of {type(metadata)}."
+            )
+        uuid = metadata.pop("uuid", None)
+        return cls(uuid=uuid, metadata=metadata)
 
     def dump(self) -> None:
         """Write out entry to a file"""
         if self.output_file is None:
             raise RuntimeError("Entry output file is undefined!")
         with self.output_file.open("w", encoding="utf-8") as file:
-            file.write(self.__str__())
+            file.write(f"{self}")
 
 
 def capwords(string: str, sep: str = "") -> str:
@@ -204,8 +209,6 @@ def process_journal(
 
         entry: Dict
         for entry in data["entries"]:
-            new_entry = Entry()
-
             creation_date = dateutil.parser.isoparse(entry["creationDate"])
             local_date = creation_date.astimezone(
                 pytz.timezone(entry["timeZone"])
@@ -222,14 +225,11 @@ def process_journal(
                 verbose=verbose,
             )
 
-            # Add some metadata as a YAML front matter
-            if yaml:
-                new_entry.has_yaml = True
+            # Create a new Entry and add metadata
+            new_entry = Entry.from_metadata(metadata)
 
-            # Add entry's metadata
-            new_entry.add_metadata(up="[[Day One MOC]]")
-            new_entry.uuid = metadata.pop("uuid", None)
-            new_entry.add_metadata(**metadata)
+            # Turn on YAML front matter, if requested
+            new_entry.has_yaml = yaml
 
             # Add body text if it exists (entries can have a "blank body" sometimes), after some tidying up
             entry_text: str
@@ -361,7 +361,8 @@ def process_journal(
             # Relative path, to check if this entry is already present in the vault directory
             target_file_rel = (
                 Path(journal_name)
-                / f"{creation_date.strftime('%Y/%Y-%m')}" / f"{file_date_format}.md"
+                / f"{creation_date.strftime('%Y/%Y-%m')}"
+                / f"{file_date_format}.md"
             )
 
             # Skip files already present in the vault directory
