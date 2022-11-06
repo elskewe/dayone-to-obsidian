@@ -5,7 +5,7 @@ import re
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Set
+from typing import Dict, Set, List
 
 import dateutil.parser
 import pytz
@@ -37,10 +37,10 @@ class Entry:
                     ]
                 )
             )
-        
-        metadata = [f"{name}:: {value}" for name, value in self.metadata.items()]
-        
-        return "{yaml}{metadata}\n%%uuid:: {uuid}%%\n\n{text}\n".format(
+
+        metadata = [f"{key}:: {value}" for key, value in self.metadata.items()]
+
+        return "{yaml}{metadata}\n\n{text}\n".format(
             yaml=self.yaml, metadata="\n".join(metadata), text=self.text, uuid=self.uuid
         )
 
@@ -51,8 +51,13 @@ class Entry:
             raise TypeError(
                 f"Metadata must be of `dict` type, instead of {type(metadata)}."
             )
-        uuid = metadata.pop("uuid", None)
-        return cls(uuid=uuid, metadata=metadata)
+
+        entry = cls(uuid=metadata.pop("uuid", None), metadata=metadata)
+
+        if entry.uuid is not None:
+            entry.metadata["url"] = f"[DayOne](dayone://view?entryId={entry.uuid})"
+
+        return entry
 
     def dump(self) -> None:
         """Write out entry to a file"""
@@ -74,8 +79,9 @@ def retrieve_metadata(
     tag_prefix: str,
     ignore_tags: Set,
     status_tags: Set,
-    verbose: int = 0,
-    journal_name: str = None,
+    extra_tags: List,
+    verbose: int,
+    journal_name: str,
 ) -> Dict:
     """Fetch the metadata of a single journal entry"""
     metadata = {}
@@ -156,6 +162,10 @@ def retrieve_metadata(
     if entry["starred"]:
         tags.append("#\u2B50")
 
+    # Add extra tags, if any
+    if extra_tags is not None:
+        tags.extend(extra_tags)
+
     # Build the final string with all the tags
     if tags:
         metadata["tags"] = ", ".join(tags)
@@ -173,9 +183,10 @@ def process_journal(
     yaml: bool,
     force: bool,
     merge_entries: bool,
-    entries_separator: str,
+    entries_sep: str,
     ignore_tags: Set,
     status_tags: Set,
+    metadata_ext: Dict,
 ) -> None:
     """Process a journal JSON file"""
     # name of folder where journal entries will end up in your Obsidian vault
@@ -209,6 +220,10 @@ def process_journal(
             total=len(data["entries"]),
         )
 
+        # Are there additional tags in the config file?
+        if metadata_ext is not None:
+            extra_tags = metadata_ext.pop("tags", None)
+
         entry: Dict
         for entry in data["entries"]:
             creation_date = dateutil.parser.isoparse(entry["creationDate"])
@@ -221,6 +236,7 @@ def process_journal(
                 entry,
                 local_date,
                 tag_prefix,
+                extra_tags=extra_tags,
                 ignore_tags=ignore_tags,
                 status_tags=status_tags,
                 journal_name=journal_name,
@@ -229,6 +245,10 @@ def process_journal(
 
             # Create a new Entry and add metadata
             new_entry = Entry.from_metadata(metadata)
+
+            # Add any other metadata field found in the config file
+            if metadata_ext is not None:
+                new_entry.metadata.update(metadata_ext)
 
             # Turn on YAML front matter, if requested
             new_entry.has_yaml = yaml
@@ -344,7 +364,7 @@ def process_journal(
                             new_text,
                         )
 
-                new_entry.text = new_text      
+                new_entry.text = new_text
 
             # Save entries organised by year, year-month, year-month-day.md
             year_dir = journal_folder / str(creation_date.year)
@@ -365,7 +385,11 @@ def process_journal(
             )
 
             # Skip files already present in the vault directory
-            if vault_directory is None or force or not (Path(vault_directory).expanduser() / target_file_rel).exists():
+            if (
+                vault_directory is None
+                or force
+                or not (Path(vault_directory).expanduser() / target_file_rel).exists()
+            ):
                 # Here is where we handle multiple entries on the same day. Each goes to it's own file
                 if target_file.stem in entries:
                     if verbose > 1:
@@ -376,7 +400,7 @@ def process_journal(
                         merged_entries += 1
                         prev_entry: Entry = entries.pop(target_file.stem)
                         del prev_entry.metadata["dates"]
-                        new_entry.text += f"\n\n{entries_separator}\n\n{prev_entry}"
+                        new_entry.text += f"\n\n{entries_sep}\n\n{prev_entry}"
                     else:
                         # File exists, need to find the next in sequence and append alpha character marker
                         index = 97  # ASCII a
@@ -403,7 +427,7 @@ def process_journal(
 
     # Rename JSON file to avoid reprocessing if the script is run twice
     num_files = len(list(base_folder.glob(f"*{journal.stem}.json")))
-    journal.rename(str(num_files - 1) + "_" + journal.name)
+    journal.rename(base_folder / f"{num_files - 1}_{journal.name}")
 
     def replace_link(match: re.Match) -> str:
         """A replacement function for dayone internal links"""
