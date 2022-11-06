@@ -18,7 +18,7 @@ from rich_utils import verbose_msg, info_msg, progress
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
     help="Obsidian vault directory where you will copy the exported Markdown files. "
     "If passed, the script will skip exporting already existent files. "
-    "PLEASE NOTE: the script IS NOT perfoming any copy operation, which must be done manually",
+    "PLEASE NOTE: the script IS NOT performing any copy operation, which must be done manually",
 )
 @click.option(
     "--force",
@@ -110,20 +110,19 @@ def convert(
 
     # Build the list of tags to ignore
     if ignore_from is not None:
-        _ignore_tags = ignore_from.readlines()
-        ignore_tags += tuple(x.strip("\n") for x in _ignore_tags)
+        ignore_tags += tuple(x.strip("\n") for x in ignore_from.readlines())
 
     # Convert a tuple to a set to discard duplicate tags, if any
     ignore_tags = set(filter(bool, ignore_tags))
 
     if verbose > 1:
-        verbose_msg(f"Ignoring the following tags: {', '.join(ignore_tags)}")
+        verbose_msg(f"Ignoring tags: {', '.join(ignore_tags)}")
 
     # Status tags, if any
     status_tags = set(filter(bool, status_tags))
 
     if verbose > 0:
-        info_msg(f"Assigned status tags: {status_tags}")
+        info_msg(f"Status tags: {', '.join(status_tags)}")
 
     # Process each JSON journal file in the input folder
     info_msg("[bold green]Processing journals...")

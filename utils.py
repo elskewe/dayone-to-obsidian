@@ -22,7 +22,7 @@ class Entry:
     uuid: str = field(default=None, eq=True)
     has_yaml: bool = field(default=False, eq=False)
     yaml: str = field(default="", eq=False)
-    metadata: dict = field(default=None, factory=dict, eq=False)
+    metadata: dict = field(factory=dict, eq=False)
     text: str = field(default="", eq=False)
     output_file: Path = field(default=None, eq=False)
 
@@ -37,13 +37,15 @@ class Entry:
                     ]
                 )
             )
+        
         metadata = [f"{name}:: {value}" for name, value in self.metadata.items()]
+        
         return "{yaml}{metadata}\n%%uuid:: {uuid}%%\n\n{text}\n".format(
             yaml=self.yaml, metadata="\n".join(metadata), text=self.text, uuid=self.uuid
         )
 
     @classmethod
-    def from_metadata(cls, metadata: dict) -> None:
+    def from_metadata(cls, metadata: dict) -> "Entry":
         """Create a new `Entry` from a metadata dictionary"""
         if not isinstance(metadata, dict):
             raise TypeError(
@@ -342,10 +344,7 @@ def process_journal(
                             new_text,
                         )
 
-                new_entry.text = new_text
-
-                # Add the entry's uuid as an hidden section (won't be present in Obsidian preview mode)
-                # new_entry.text.append(f"\n\n%%\nuuid:: {new_entry.uuid}\n%%")
+                new_entry.text = new_text      
 
             # Save entries organised by year, year-month, year-month-day.md
             year_dir = journal_folder / str(creation_date.year)
@@ -366,10 +365,7 @@ def process_journal(
             )
 
             # Skip files already present in the vault directory
-            if vault_directory is None or (
-                force
-                or not (Path(vault_directory).expanduser() / target_file_rel).exists()
-            ):
+            if vault_directory is None or force or not (Path(vault_directory).expanduser() / target_file_rel).exists():
                 # Here is where we handle multiple entries on the same day. Each goes to it's own file
                 if target_file.stem in entries:
                     if verbose > 1:
@@ -392,7 +388,7 @@ def process_journal(
                             )
                         new_entry.output_file = target_file
 
-                # Add current entry's as a new key-value pair in entries dict
+                # Add current entry's to entries dict
                 entries[target_file.stem] = new_entry
 
                 # Step 1 to replace dayone internal links to other entries with proper Obsidian [[links]]
