@@ -31,7 +31,7 @@ class Entry:
             self.yaml = "---\n{yaml_block}\n---\n\n".format(
                 yaml_block="\n".join(
                     [
-                        f"{name.lower().replace(' ', '_')}: '{value}'"
+                        f"""{name.lower().replace(' ', '_')}: {"'" + value + "'" if isinstance(value, str) else value}"""
                         for name, value in self.metadata.items()
                         if name in ("location", "places", "dates", "tags", "weather")
                     ]
