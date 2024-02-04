@@ -127,12 +127,12 @@ def retrieve_metadata(
     # Add weather information if present
     if "weather" in entry and all(
         i in entry["weather"]
-        for i in ["conditionsDescription", "temperatureCelsius", "windSpeedKPH"]
+        for i in ["weatherCode", "temperatureCelsius", "windSpeedKPH"]
     ):
         weather = entry["weather"]
         metadata[
             "weather"
-        ] = f"{weather['conditionsDescription']}, {round(weather['temperatureCelsius'], 1)}°C, {round(weather['windSpeedKPH'], 1)} km/h wind"
+        ] = f"{weather['weatherCode']}, {round(weather['temperatureCelsius'], 1)}°C, {round(weather['windSpeedKPH'], 1)} km/h wind"
 
     # Process tags
     tags = []
