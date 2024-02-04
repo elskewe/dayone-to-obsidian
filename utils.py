@@ -122,7 +122,7 @@ def retrieve_metadata(
         ["latitude" in entry["location"], "longitude" in entry["location"]]
     ):
         loc = entry["location"]
-        metadata["location"] = f"{loc.get('latitude')}, {loc.get('longitude')}"
+        metadata["location"] = [loc.get('latitude'), loc.get('longitude')]
 
     # Add weather information if present
     if "weather" in entry and all(
