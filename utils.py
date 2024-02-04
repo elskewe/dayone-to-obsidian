@@ -33,14 +33,15 @@ class Entry:
                     [
                         f"""{name.lower().replace(' ', '_')}: {"'" + value + "'" if isinstance(value, str) else value}"""
                         for name, value in self.metadata.items()
-                        if name in ("location", "places", "dates", "tags", "weather")
                     ]
                 )
             )
+            metadata = []
+        else:
+            metadata = [f"{key}:: {value}" for key, value in self.metadata.items()]
+            metadata.extend(["", ""]) # this will add two new lines after the metadata
 
-        metadata = [f"{key}:: {value}" for key, value in self.metadata.items()]
-
-        return "{yaml}{metadata}\n\n{text}\n".format(
+        return "{yaml}{metadata}{text}\n".format(
             yaml=self.yaml, metadata="\n".join(metadata), text=self.text, uuid=self.uuid
         )
 
@@ -55,7 +56,8 @@ class Entry:
         entry = cls(uuid=metadata.pop("uuid", None), metadata=metadata, has_yaml=yaml)
 
         if entry.uuid is not None:
-            entry.metadata["url"] = f"[DayOne](dayone://view?entryId={entry.uuid})"
+            url = f"dayone://view?entryId={entry.uuid}"
+            entry.metadata["url"] = url if entry.has_yaml else f"[DayOne]({url})"
 
         return entry
 
