@@ -45,14 +45,14 @@ class Entry:
         )
 
     @classmethod
-    def from_metadata(cls, metadata: dict) -> "Entry":
+    def from_metadata(cls, metadata: dict, yaml: bool = False) -> "Entry":
         """Create a new `Entry` from a metadata dictionary"""
         if not isinstance(metadata, dict):
             raise TypeError(
                 f"Metadata must be of `dict` type, instead of {type(metadata)}."
             )
 
-        entry = cls(uuid=metadata.pop("uuid", None), metadata=metadata)
+        entry = cls(uuid=metadata.pop("uuid", None), metadata=metadata, has_yaml=yaml)
 
         if entry.uuid is not None:
             entry.metadata["url"] = f"[DayOne](dayone://view?entryId={entry.uuid})"
@@ -246,14 +246,11 @@ def process_journal(
             )
 
             # Create a new Entry and add metadata
-            new_entry = Entry.from_metadata(metadata)
+            new_entry = Entry.from_metadata(metadata, yaml=yaml)
 
             # Add any other metadata field found in the config file
             if metadata_ext is not None:
                 new_entry.metadata.update(metadata_ext)
-
-            # Turn on YAML front matter, if requested
-            new_entry.has_yaml = yaml
 
             # Add body text if it exists (entries can have a "blank body" sometimes), after some tidying up
             entry_text: str
