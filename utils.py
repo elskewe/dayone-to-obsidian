@@ -33,7 +33,7 @@ class Entry:
                     [
                         f"{name.lower().replace(' ', '_')}: {value}"
                         for name, value in self.metadata.items()
-                        if name in ("location", "places", "dates", "tags")
+                        if name in ("location", "places", "dates", "tags", "weather")
                     ]
                 )
             )
