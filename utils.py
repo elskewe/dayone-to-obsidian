@@ -90,8 +90,7 @@ def retrieve_metadata(
     metadata["uuid"] = entry["uuid"]
 
     # Add raw create datetime adjusted for timezone and identify timezone
-    metadata["dates"] = local_date.strftime("%Y-%m-%d")
-    metadata["time"] = local_date.strftime("%H:%M:%S")
+    metadata["dates"] = local_date.strftime("%Y-%m-%d %H:%M:%S")
     # metadata["timezone"] = entry["timeZone"]
 
     # Add location
