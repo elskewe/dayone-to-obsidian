@@ -142,7 +142,7 @@ def convert(
         for filename in pathlib.Path(folder).glob("[!0-9]*.json"):
             Journal.process_journal(
                 progress=progress,
-                journal=filename,
+                journal_path=filename,
                 vault_directory=vault_directory or config.get("vault_directory", None),
                 force=force,
                 verbose=verbose,

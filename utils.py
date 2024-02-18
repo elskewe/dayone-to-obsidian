@@ -182,7 +182,7 @@ class Journal:
     def process_journal(
         cls,
         progress: Progress,
-        journal: Path,
+        journal_path: Path,
         vault_directory: Path,
         tag_prefix: str,
         verbose: int,
@@ -197,8 +197,8 @@ class Journal:
     ) -> "Journal":
         """Process a journal JSON file"""
         # name of folder where journal entries will end up in your Obsidian vault
-        journal_name = journal.stem.lower()
-        base_folder = journal.resolve().parent
+        journal_name = journal_path.stem.lower()
+        base_folder = journal_path.resolve().parent
         journal_folder = base_folder / journal_name
 
         # Clean out existing journal folder, otherwise each run creates new files
@@ -219,11 +219,11 @@ class Journal:
         # Needed to perform DayOne -> Obsidian links conversion
         uuid_to_file = {}
 
-        with open(journal, encoding="utf-8") as json_file:
+        with open(journal_path, encoding="utf-8") as json_file:
             data: Dict = json.load(json_file)
 
             task = progress.add_task(
-                f"[bold green]Processing entries of '[cyan][not bold]{journal.name}[/not bold][/cyan]'",
+                f"[bold green]Processing entries of '[cyan][not bold]{journal_path.name}[/not bold][/cyan]'",
                 total=len(data["entries"]),
             )
 
@@ -435,7 +435,7 @@ class Journal:
 
         # Rename JSON file to avoid reprocessing if the script is run twice
         num_files = len(list(base_folder.glob(f"*{journal.stem}.json")))
-        journal.rename(base_folder / f"{num_files - 1}_{journal.name}")
+        journal_path.rename(base_folder / f"{num_files - 1}_{journal.name}")
 
         def replace_link(match: re.Match) -> str:
             """A replacement function for dayone internal links"""
