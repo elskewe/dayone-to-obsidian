@@ -6,7 +6,7 @@ import click
 import yaml as Yaml
 
 from rich_utils import info_msg, progress, verbose_msg, warn_msg
-from utils import process_journal
+from utils import Journal
 
 
 @click.command()
@@ -140,7 +140,7 @@ def convert(
 
     with progress:
         for filename in pathlib.Path(folder).glob("[!0-9]*.json"):
-            process_journal(
+            Journal.process_journal(
                 progress=progress,
                 journal=filename,
                 vault_directory=vault_directory or config.get("vault_directory", None),
