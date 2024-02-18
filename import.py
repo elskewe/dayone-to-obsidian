@@ -138,9 +138,11 @@ def convert(
     if verbose > 0:
         warn_msg("Journal filenames with a leading number will be ignored!")
 
+    journals = []
+
     with progress:
         for filename in pathlib.Path(folder).glob("[!0-9]*.json"):
-            journal = Journal.process_journal(
+            journals.append(Journal.process_journal(
                 progress=progress,
                 journal_path=filename,
                 vault_directory=vault_directory or config.get("vault_directory", None),
@@ -154,7 +156,9 @@ def convert(
                 merge_entries=merge_entries or config.get("merge_entries", False),
                 entries_sep=entries_sep or config.get("entries_sep", "---\n---"),
                 metadata_ext=config.get("metadata", None),
-            )
+            ))
+
+        for journal in journals:
             journal.dump()
 
     info_msg(
