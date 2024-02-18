@@ -31,7 +31,7 @@ class Entry:
             self.yaml = "---\n{yaml_block}\n---\n\n".format(
                 yaml_block="\n".join(
                     [
-                        f"""{name.lower().replace(' ', '_')}: {"'" + value + "'" if isinstance(value, str) else value}"""
+                        f"""{name.lower().replace(' ', '_')}: {"'" + value.replace("'", "''") + "'" if isinstance(value, str) else value}"""
                         for name, value in self.metadata.items()
                     ]
                 )
@@ -157,7 +157,7 @@ def retrieve_metadata(
 
     # Add a tag for the location to make places searchable in Obsidian
     if location:
-        tags.append(f"#places/{'/'.join(map(capwords, location[-1:0:-1]))}")
+        tags.append(f"""#places/{'/'.join([capwords(s.replace("'", "-")) for s in location[-1:0:-1]])}""")
 
     # Add a :star: emoji for starred entries
     if entry["starred"]:
