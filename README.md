@@ -24,7 +24,7 @@ You can also run **without Poetry**: you can simply create a virtual environment
 
 ## Day One version
 
-This script works with journals exported as JSON from DayOne, version **7.16** (build 1421) as of September, 21st 2022.
+This script works with journals exported as JSON from DayOne, version **2024.03** (Android) as of February, 18th 2024.
 
 ## Setup
 
