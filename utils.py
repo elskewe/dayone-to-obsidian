@@ -11,6 +11,7 @@ import dateutil.parser
 import pytz
 from attrs import define, field
 from rich.progress import Progress
+from functools import cached_property
 
 from rich_utils import info_msg, verbose_msg, warn_msg
 
@@ -173,7 +174,7 @@ def retrieve_metadata(
 
     return metadata
 
-@define
+@define(slots=False) # slots are deactivated to enable `cached_property`
 class Journal:
     """A journal with possibly many entries"""
     entries: Dict[str, Entry]
@@ -184,7 +185,6 @@ class Journal:
     merged_entries: int # number of entries which were merged
     total_base_entries: int # number of entries in the journal before merging
     convert_links: bool # if true, replace DayOne internal links with Obsidian links
-    uuid_to_file: Dict
 
     @classmethod
     def process_journal(
@@ -222,10 +222,6 @@ class Journal:
         # All entries processed will be added to a dictionary
         entries = {}
         merged_entries = 0
-
-        # Mapping between entries UUIDs and Markdown files
-        # Needed to perform DayOne -> Obsidian links conversion
-        uuid_to_file = {}
 
         with open(journal_path, encoding="utf-8") as json_file:
             data: Dict = json.load(json_file)
@@ -429,8 +425,6 @@ class Journal:
                     # Add current entry's to entries dict
                     entries[target_file.stem] = new_entry
 
-                    # Step 1 to replace dayone internal links to other entries with proper Obsidian [[links]]
-                    uuid_to_file[new_entry.uuid] = target_file.name
                 else:
                     if verbose > 1:
                         verbose_msg(
@@ -441,9 +435,13 @@ class Journal:
 
         journal = cls(entries=entries, path=journal_path, merge_entries=merge_entries, merged_entries=merged_entries, 
                       total_base_entries=len(data["entries"]), convert_links=convert_links, 
-                      base_folder=base_folder, journal_folder=journal_folder, uuid_to_file=uuid_to_file)
+                      base_folder=base_folder, journal_folder=journal_folder)
         return journal
     
+    @cached_property
+    def uuid_to_file(self) -> Dict[str, str]:
+        return {entry.uuid: entry.output_file.name for entry in self.entries.values()}
+
     def dump(self) -> None:
         """Write all entries in the journal to files"""
 
