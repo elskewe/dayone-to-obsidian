@@ -439,8 +439,8 @@ class Journal:
         return journal
     
     @cached_property
-    def uuid_to_file(self) -> Dict[str, str]:
-        return {entry.uuid: entry.output_file.name for entry in self.entries.values()}
+    def uuid_to_file(self) -> Dict[str, Path]:
+        return {entry.uuid: entry.output_file.relative_to(self.base_folder) for entry in self.entries.values()}
 
     def dump(self) -> None:
         """Write all entries in the journal to files"""
@@ -472,14 +472,7 @@ class Journal:
             """A replacement function for dayone internal links"""
             link_text, uuid = match.groups()
             if uuid in uuids_to_filenames:
-                file_name = uuids_to_filenames[uuid]
-                if list(uuids_to_filenames.values()).count(file_name) > 1:
-                    # there are multiple entries with the same file name
-                    #TODO: implement a real solution
-                    file_path = file_name
-                    warn_msg(f"""Multiple entries with the same filename ("{file_name}") while replacing internal DayOne links. The internal link might point to the wrong one.""")
-                else:
-                    file_path = file_name
+                file_path = uuids_to_filenames[uuid].as_posix() # convert to forward slashes
                 return f"[[{file_path}|{link_text}]]"
             return f"^[Linked entry with UUID `{uuid}` not found]"
 
