@@ -458,7 +458,10 @@ class Journal:
         )
 
     @staticmethod
-    def convert_dayone_links(journals: List["Journal"]) -> List["Journal"]:
+    def convert_dayone_links(
+        journals: List["Journal"]
+        # no return value is needed as the list is not altered and the `Journal` objects inside it are modified in place
+        ) -> None:
         """Convert dayone internal links to markdown links"""
         # Step 1: build a list of all UUIDs and corresponding filenames
         uuids_to_filenames = {}
