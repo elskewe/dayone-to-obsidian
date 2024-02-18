@@ -176,7 +176,15 @@ def retrieve_metadata(
 @define
 class Journal:
     """A journal with possibly many entries"""
-    entries: Dict
+    entries: Dict[str, Entry]
+    path: Path # path to the JSON file
+    base_folder: Path # parent folder of the JSON file
+    journal_folder: Path # folder where journal entries will end up in your Obsidian vault
+    merge_entries: bool # if true, merge entries with the same date
+    merged_entries: int # number of entries which were merged
+    total_base_entries: int # number of entries in the journal before merging
+    convert_links: bool # if true, replace DayOne internal links with Obsidian links
+    uuid_to_file: Dict
 
     @classmethod
     def process_journal(
@@ -431,22 +439,28 @@ class Journal:
 
                 progress.update(task, advance=1)
 
-        journal = cls(entries=entries)
+        journal = cls(entries=entries, path=journal_path, merge_entries=merge_entries, merged_entries=merged_entries, 
+                      total_base_entries=len(data["entries"]), convert_links=convert_links, 
+                      base_folder=base_folder, journal_folder=journal_folder, uuid_to_file=uuid_to_file)
+        return journal
+    
+    def dump(self) -> None:
+        """Write all entries in the journal to files"""
 
         # Rename JSON file to avoid reprocessing if the script is run twice
-        num_files = len(list(base_folder.glob(f"*{journal.stem}.json")))
-        journal_path.rename(base_folder / f"{num_files - 1}_{journal.name}")
+        num_files = len(list(self.base_folder.glob(f"*{self.path.stem}.json")))
+        self.path.rename(self.base_folder / f"{num_files - 1}_{self.path.name}")
 
         def replace_link(match: re.Match) -> str:
             """A replacement function for dayone internal links"""
             link_text, uuid = match.groups()
-            if uuid in uuid_to_file:
-                return f"[[{uuid_to_file[uuid]}|{link_text}]]"
+            if uuid in self.uuid_to_file:
+                return f"[[{self.uuid_to_file[uuid]}|{link_text}]]"
             return f"^[Linked entry with UUID `{uuid}` not found]"
 
         entry: Entry
-        for entry in entries.values():
-            if convert_links:
+        for entry in self.entries.values():
+            if self.convert_links:
                 # Step 2 to replace dayone internal links: we must do a second iteration over entries
                 # The regex to match a dayone internal link: [link_text](dayone://view?EntryId=uuid)
                 entry.text = re.sub(
@@ -455,7 +469,5 @@ class Journal:
             entry.dump()
 
         info_msg(
-            f":white_check_mark: {len(entries)}/{len(data['entries'])}{f' ({merged_entries} merged)' if merge_entries else ''} entries have been exported to '{journal_folder}'"
+            f":white_check_mark: {len(self.entries)}/{self.total_base_entries}{f' ({self.merged_entries} merged)' if self.merge_entries else ''} entries have been exported to '{self.journal_folder}'"
         )
-
-        return journal

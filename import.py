@@ -140,7 +140,7 @@ def convert(
 
     with progress:
         for filename in pathlib.Path(folder).glob("[!0-9]*.json"):
-            Journal.process_journal(
+            journal = Journal.process_journal(
                 progress=progress,
                 journal_path=filename,
                 vault_directory=vault_directory or config.get("vault_directory", None),
@@ -155,6 +155,7 @@ def convert(
                 entries_sep=entries_sep or config.get("entries_sep", "---\n---"),
                 metadata_ext=config.get("metadata", None),
             )
+            journal.dump()
 
     info_msg(
         "[bold green]:white_check_mark: All JSON journals (if any) have been processed!"
