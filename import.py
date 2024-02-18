@@ -158,6 +158,9 @@ def convert(
                 metadata_ext=config.get("metadata", None),
             ))
 
+        if convert_links or config.get("convert_links", False):
+            Journal.convert_dayone_links(journals)
+
         for journal in journals:
             journal.dump()
 

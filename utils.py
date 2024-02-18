@@ -449,23 +449,35 @@ class Journal:
         num_files = len(list(self.base_folder.glob(f"*{self.path.stem}.json")))
         self.path.rename(self.base_folder / f"{num_files - 1}_{self.path.name}")
 
-        def replace_link(match: re.Match) -> str:
-            """A replacement function for dayone internal links"""
-            link_text, uuid = match.groups()
-            if uuid in self.uuid_to_file:
-                return f"[[{self.uuid_to_file[uuid]}|{link_text}]]"
-            return f"^[Linked entry with UUID `{uuid}` not found]"
-
         entry: Entry
         for entry in self.entries.values():
-            if self.convert_links:
-                # Step 2 to replace dayone internal links: we must do a second iteration over entries
-                # The regex to match a dayone internal link: [link_text](dayone://view?EntryId=uuid)
-                entry.text = re.sub(
-                    r"\[(.*?)\]\(dayone2?:\/\/.*?([A-F0-9]+)\)", replace_link, entry.text
-                )
             entry.dump()
 
         info_msg(
             f":white_check_mark: {len(self.entries)}/{self.total_base_entries}{f' ({self.merged_entries} merged)' if self.merge_entries else ''} entries have been exported to '{self.journal_folder}'"
         )
+
+    @staticmethod
+    def convert_dayone_links(journals: List["Journal"]) -> List["Journal"]:
+        """Convert dayone internal links to markdown links"""
+        # Step 1: build a list of all UUIDs and corresponding filenames
+        uuids_to_filenames = {}
+        for journal in journals:
+            uuids_to_filenames = uuids_to_filenames | journal.uuid_to_file
+
+        def replace_link(match: re.Match) -> str:
+            """A replacement function for dayone internal links"""
+            link_text, uuid = match.groups()
+            if uuid in uuids_to_filenames:
+                #TODO: handle case where there are multiple entries with the same name
+                return f"[[{uuids_to_filenames[uuid]}|{link_text}]]"
+            return f"^[Linked entry with UUID `{uuid}` not found]"
+
+        # Step 2: iterate over journals and entries again to replace dayone internal links
+        for journal in journals:
+            entry: Entry
+            for entry in journal.entries.values():
+                # The regex to match a dayone internal link: [link_text](dayone://view?EntryId=uuid)
+                entry.text = re.sub(
+                    r"\[(.*?)\]\(dayone2?:\/\/.*?([A-F0-9]+)\)", replace_link, entry.text
+                )
