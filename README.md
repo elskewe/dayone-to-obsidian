@@ -2,17 +2,29 @@
 
 Convert a [Day One](https://dayoneapp.com/) JSON export into individual entries for [Obsidian](https://obsidian.md).
 
-Heavily based off of the work from [QuantumGardener](https://github.com/quantumgardener/dayone-to-obsidian) with a few improvements.
+Heavily based off of the work from [QuantumGardener](https://github.com/quantumgardener/dayone-to-obsidian) and [edoardob90](https://github.com/edoardob90/dayone-to-obsidian) with a few improvements.
 
-## Added features of this repo
+## Added features
 
-Check the `--help` option to get a description of the new features. In summary:
+Check the `--help` option to get a description of the new features. 
+
+Changes by [edoardob90](https://github.com/edoardob90):
 
 - Process audio, video, and pdf attachments as well
 - Toggle on/off YAML frontmatter (if you don't want it or use it)
 - Add option `--convert-links` to replace internal DayOne links (e.g., `dayone://view?entryId=<UUID>`) with Obsidian links
 - Status tags can be added with the `--status-tags` (or `-s`). Each `tag` passed as argument will be added as `#status/tag`
 - Add the option `--merge-entries` to merge entries (with a custom separator) with the same date instead of creating multiple files
+
+Changes by [me](https://github.com/elskewe):
+
+- Adjust for slight changes in the Day One JSON export
+- Fix quoting in YAML frontmatter
+- Write location as number instead of strings (this enables using the [Map View plugin](obsidian://show-plugin?id=obsidian-map-view) in Obsidian)
+- Either a YAML frontmatter or the metadate in the text is written, not both when enabling the YAML frontmatter
+- Combine the time and date into a single field
+- Fix links across journals (links are now relative instead of just the filename)
+
 
 ## Installation
 
