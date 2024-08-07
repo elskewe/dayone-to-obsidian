@@ -282,7 +282,13 @@ class Journal:
                     if "photos" in entry:
                         # Correct photo links. The filename is the md5 code, not the identifier used in the text
                         for photo in entry["photos"]:
-                            image_type = photo["type"]
+                            try:
+                                image_type = photo["type"]
+                            except KeyError:
+                                # This is probably due to Day One not downloading the photo correctly during the export
+                                warn_msg(f"Missing 'type' in photo: {photo['md5']}. Skipping as it is probably missing.")
+                                continue
+
                             original_photo_file = (
                                 base_folder / "photos" / f"{photo['md5']}.{image_type}"
                             )
