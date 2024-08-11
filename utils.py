@@ -488,5 +488,5 @@ class Journal:
             for entry in journal.entries.values():
                 # The regex to match a dayone internal link: [link_text](dayone://view?EntryId=uuid)
                 entry.text = re.sub(
-                    r"\[(.*?)\]\(dayone2?:\/\/.*?([A-F0-9]+)\)", replace_link, entry.text
+                    r"\[([^\]]*?)\]\(dayone2?:\/\/.*?([A-F0-9]+)\)", replace_link, entry.text
                 )
