@@ -286,7 +286,8 @@ class Journal:
                                 image_type = photo["type"]
                             except KeyError:
                                 # This is probably due to Day One not downloading the photo correctly during the export
-                                warn_msg(f"Missing 'type' in photo: {photo['md5']}. Skipping as it is probably missing.")
+                                warn_msg(f"Missing 'type' in photo: {photo['identifier']} in entry from {entry['creationDate']}."
+                                         " Skipping as it is probably missing.")
                                 continue
 
                             original_photo_file = (
