@@ -5,7 +5,6 @@ import re
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Set, List
 
 import dateutil.parser
 import pytz
@@ -77,15 +76,15 @@ def capwords(string: str, sep: str = "") -> str:
 
 # TODO: refactor this function into a method of the Entry class
 def retrieve_metadata(
-    entry: Dict,
+    entry: dict,
     local_date: datetime,
     tag_prefix: str,
-    ignore_tags: Set,
-    status_tags: Set,
-    extra_tags: List,
+    ignore_tags: set,
+    status_tags: set,
+    extra_tags: list,
     verbose: int,
     journal_name: str,
-) -> Dict:
+) -> dict:
     """Fetch the metadata of a single journal entry"""
     metadata = {}
     metadata["uuid"] = entry["uuid"]
@@ -177,7 +176,7 @@ def retrieve_metadata(
 @define(slots=False) # slots are deactivated to enable `cached_property`
 class Journal:
     """A journal with possibly many entries"""
-    entries: Dict[str, Entry]
+    entries: dict[str, Entry]
     path: Path # path to the JSON file
     base_folder: Path # parent folder of the JSON file
     journal_folder: Path # folder where journal entries will end up in your Obsidian vault
@@ -199,9 +198,9 @@ class Journal:
         force: bool,
         merge_entries: bool,
         entries_sep: str,
-        ignore_tags: Set,
-        status_tags: Set,
-        metadata_ext: Dict,
+        ignore_tags: set,
+        status_tags: set,
+        metadata_ext: dict,
     ) -> "Journal":
         """Process a journal JSON file"""
         # name of folder where journal entries will end up in your Obsidian vault
@@ -224,7 +223,7 @@ class Journal:
         merged_entries = 0
 
         with open(journal_path, encoding="utf-8") as json_file:
-            data: Dict = json.load(json_file)
+            data: dict = json.load(json_file)
 
             task = progress.add_task(
                 f"[bold green]Processing entries of '[cyan][not bold]{journal_path.name}[/not bold][/cyan]'",
@@ -237,7 +236,7 @@ class Journal:
             else:
                 extra_tags = None
 
-            entry: Dict
+            entry: dict
             for entry in data["entries"]:
                 creation_date = dateutil.parser.isoparse(entry["creationDate"])
                 local_date = creation_date.astimezone(
@@ -446,7 +445,7 @@ class Journal:
         return journal
     
     @cached_property
-    def uuid_to_file(self) -> Dict[str, Path]:
+    def uuid_to_file(self) -> dict[str, Path]:
         return {entry.uuid: entry.output_file.relative_to(self.base_folder) for entry in self.entries.values()}
 
     def dump(self) -> None:
@@ -466,7 +465,7 @@ class Journal:
 
     @staticmethod
     def convert_dayone_links(
-        journals: List["Journal"]
+        journals: list["Journal"]
         # no return value is needed as the list is not altered and the `Journal` objects inside it are modified in place
         ) -> None:
         """Convert dayone internal links to markdown links"""
