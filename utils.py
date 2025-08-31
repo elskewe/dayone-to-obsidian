@@ -167,9 +167,7 @@ def retrieve_metadata(
     if extra_tags is not None:
         tags.extend(extra_tags)
 
-    # Build the final string with all the tags
-    if tags:
-        metadata["tags"] = ", ".join(tags)
+    metadata["tags"] = tags
 
     return metadata
 
