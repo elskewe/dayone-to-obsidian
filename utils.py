@@ -43,7 +43,7 @@ class Entry:
             metadata.extend(["", ""]) # this will add two new lines after the metadata
 
         return "{yaml}{metadata}{text}\n".format(
-            yaml=self.yaml, metadata="\n".join(metadata), text=self.text, uuid=self.uuid
+            yaml=self.yaml, metadata="\n".join(metadata), text=self.text
         )
 
     @classmethod
