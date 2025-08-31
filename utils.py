@@ -441,7 +441,7 @@ class Journal:
                       total_base_entries=len(data["entries"]), convert_links=convert_links, 
                       base_folder=base_folder, journal_folder=journal_folder)
         return journal
-    
+
     @cached_property
     def uuid_to_file(self) -> dict[str, Path]:
         return {entry.uuid: entry.output_file.relative_to(self.base_folder) for entry in self.entries.values()}
